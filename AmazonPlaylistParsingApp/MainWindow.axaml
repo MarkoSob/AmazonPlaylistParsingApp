@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="AmazonPlaylistParsingApp.MainWindow"
+        Title="AmazonPlaylistParsingApp"
+		SizeToContent="WidthAndHeight">
+	<StackPanel>
+
+		<Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto"  Margin="10">
+			<Button Margin="5" Background="#5ea1f9" Click="OnButtonClick" Grid.Row="0" Grid.Column="0">Parse</Button>
+			<TextBox  Width="500" Height="25" x:Name="UrlInput" Grid.Row="0" Grid.Column="1"/>
+			<Image Width="100" Height="100" x:Name="CoverImage" Grid.Row="1" Grid.Column="0"/>
+			<Grid ColumnDefinitions="Auto" RowDefinitions="Auto,Auto"  Margin="4" Grid.Row="1" Grid.Column="1">
+				<TextBlock x:Name="PlaylistTitle" FontSize="20" Margin="5" Text="{Binding SongName}" Grid.Row="0" Grid.Column="0"/>
+				<TextBlock x:Name="PlaylistDecsription" FontSize="12" Margin="5" Text="{Binding SongName}" Grid.Row="1" Grid.Column="0"/>
+			</Grid>
+		</Grid>
+		<ScrollViewer VerticalScrollBarVisibility="Auto">
+			<ListBox x:Name="Playlist" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4">
+				<ListBox.ItemTemplate>
+					<DataTemplate>
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition/>
+								<ColumnDefinition/>
+								<ColumnDefinition/>
+								<ColumnDefinition/>
+							</Grid.ColumnDefinitions>
+							<TextBlock FontSize="8" Margin="5" Grid.Column="0" Text="{Binding SongName}"/>
+							<TextBlock FontSize="8" Margin="5" Grid.Column="1" Text="{Binding ArtistName}"/>
+							<TextBlock FontSize="8" Margin="5" Grid.Column="2" Text="{Binding AlbumName}"/>
+							<TextBlock FontSize="8" Margin="5" Grid.Column="3" Text="{Binding Duration}"/>
+						</Grid>
+					</DataTemplate>
+				</ListBox.ItemTemplate>
+			</ListBox>
+		</ScrollViewer>
+	</StackPanel>
+</Window>
