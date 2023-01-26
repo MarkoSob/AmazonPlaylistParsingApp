@@ -21,6 +21,8 @@ public partial class MainWindow : Window
     public Bitmap Cover { get; set; }
     public WebClient Client { get; set; }
 
+    private const string elementsPath = "//music-detail-header[contains(@image-kind,'square')]";
+
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
@@ -30,18 +32,11 @@ public partial class MainWindow : Window
 
     public async void ParsePlaylist()
     {
-        string url = this.FindControl<TextBox>("UrlInput").Text;
+        string playlistUrl = this.FindControl<TextBox>("UrlInput").Text;
 
-        if (string.IsNullOrEmpty(url) || !url.Contains("music.amazon"))
+        if (string.IsNullOrEmpty(playlistUrl) || !playlistUrl.Contains("music.amazon"))
         {
-            var messageBox = new Window
-            {
-                Content = new TextBlock { Text = "Enter the valid amazon music url" },
-                Title = "Alert",
-                SizeToContent = SizeToContent.WidthAndHeight,
-            };
-
-            messageBox.ShowDialog(this);
+            ShowErrorMessage("Enter the valid amazon music url");
 
             return;
         }
@@ -51,10 +46,10 @@ public partial class MainWindow : Window
             StringBuilder description = new StringBuilder();
             Songs = new List<Song>();
             string playlistTitle = string.Empty;
-            string image = string.Empty;
+            string coverImage = string.Empty;
             string basePath = string.Empty;
 
-            if (url.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
+            if (playlistUrl.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
             {
                 basePath = "//music-text-row[contains(@icon-name,'play')]";
             }
@@ -67,27 +62,29 @@ public partial class MainWindow : Window
            
             try
             {
-                driver.Navigate().GoToUrl(url);
+                driver.Navigate().GoToUrl(playlistUrl);
+
                 Thread.Sleep(3000);
 
-                image = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                coverImage = driver.FindElement(By.XPath(elementsPath))
                .GetDomAttribute("image-src");
 
-                playlistTitle = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                playlistTitle = driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("headline");
 
-                description.Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                description.Append(driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("primary-text"))
                     .Append(" ")
-                    .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .Append(driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("secondary-text"))
                     .Append(" ")
-                    .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .Append(driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("tertiary-text"));
 
                 var durations = driver.FindElements(
                      By.XPath(basePath + "//div[@class='col4']//span"));
-                await DownloadImage(image);
+
+                await DownloadImage(coverImage);
 
                 var songs = driver.FindElements(By.XPath(basePath));
 
@@ -102,17 +99,9 @@ public partial class MainWindow : Window
                     });
                 };
             }
-            catch (Exception ex)
+            catch (NoSuchElementException ex)
             {
-                var messageBox = new Window
-                {
-                    Content = new TextBlock { Text = ex.Message },
-                    Title = "Alert",
-                    SizeToContent = SizeToContent.WidthAndHeight,
-                };
-
-                messageBox.ShowDialog(this);
-
+                ShowErrorMessage(ex.Message);
             }
 
             this.FindControl<ListBox>("Playlist").Items = Songs;
@@ -163,5 +152,17 @@ public partial class MainWindow : Window
         {
             Cover = null;
         }
+    }
+
+    private void ShowErrorMessage(string errorMessage)
+    {
+        var messageBox = new Window
+        {
+            Content = new TextBlock { Text = errorMessage },
+            Title = "Error",
+            SizeToContent = SizeToContent.WidthAndHeight,
+        };
+
+        messageBox.ShowDialog(this);
     }
 }
