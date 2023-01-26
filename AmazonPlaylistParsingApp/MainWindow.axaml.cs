@@ -30,12 +30,28 @@ public partial class MainWindow : Window
 
     public async void ParsePlaylist()
     {
+        string url = this.FindControl<TextBox>("UrlInput").Text;
+
+        if (string.IsNullOrEmpty(url) || !url.Contains("music.amazon"))
+        {
+            var messageBox = new Window
+            {
+                Content = new TextBlock { Text = "Enter the valid amazon music url" },
+                Title = "Alert",
+                SizeToContent = SizeToContent.WidthAndHeight,
+            };
+
+            messageBox.ShowDialog(this);
+
+            return;
+        }
 
         using (var driver = new ChromeDriver())
         {
             StringBuilder description = new StringBuilder();
             Songs = new List<Song>();
-            string url = this.FindControl<TextBox>("UrlInput").Text;
+            string playlistTitle = string.Empty;
+            string image = string.Empty;
             string basePath = string.Empty;
 
             if (url.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
@@ -48,42 +64,56 @@ public partial class MainWindow : Window
             }
 
             driver.Manage().Window.Maximize();
-            driver.Navigate().GoToUrl(url);
-
-            Thread.Sleep(3000);
-
-            var image = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
-                .GetDomAttribute("image-src");
-
-            var playlistTitle = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
-                .GetDomAttribute("headline");
-
-            description.Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
-                .GetDomAttribute("primary-text"))
-                .Append(" ")
-                .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
-                .GetDomAttribute("secondary-text"))
-                .Append(" ")
-                .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
-                .GetDomAttribute("tertiary-text"));
-
-            await DownloadImage(image);
-
-            var songs = driver.FindElements(By.XPath(basePath));
-
-            var durations = driver.FindElements(
-            By.XPath(basePath + "//div[@class='col4']//span"));
-
-            for (int i = 0; i < songs.Count; i++)
+           
+            try
             {
-                Songs.Add(new Song
+                driver.Navigate().GoToUrl(url);
+                Thread.Sleep(3000);
+
+                image = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+               .GetDomAttribute("image-src");
+
+                playlistTitle = driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .GetDomAttribute("headline");
+
+                description.Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .GetDomAttribute("primary-text"))
+                    .Append(" ")
+                    .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .GetDomAttribute("secondary-text"))
+                    .Append(" ")
+                    .Append(driver.FindElement(By.XPath("//music-detail-header[contains(@image-kind,'square')]"))
+                    .GetDomAttribute("tertiary-text"));
+
+                var durations = driver.FindElements(
+                     By.XPath(basePath + "//div[@class='col4']//span"));
+                await DownloadImage(image);
+
+                var songs = driver.FindElements(By.XPath(basePath));
+
+                for (int i = 0; i < songs.Count; i++)
                 {
-                    SongName = songs[i].GetDomAttribute("primary-text"),
-                    AlbumName = songs[i].GetDomAttribute("secondary-text-2"),
-                    ArtistName = songs[i].GetDomAttribute("secondary-text-1"),
-                    Duration = durations[i].Text
-                });
-            };
+                    Songs.Add(new Song
+                    {
+                        SongName = songs[i].GetDomAttribute("primary-text"),
+                        AlbumName = songs[i].GetDomAttribute("secondary-text-2"),
+                        ArtistName = songs[i].GetDomAttribute("secondary-text-1"),
+                        Duration = durations[i].Text
+                    });
+                };
+            }
+            catch (Exception ex)
+            {
+                var messageBox = new Window
+                {
+                    Content = new TextBlock { Text = ex.Message },
+                    Title = "Alert",
+                    SizeToContent = SizeToContent.WidthAndHeight,
+                };
+
+                messageBox.ShowDialog(this);
+
+            }
 
             this.FindControl<ListBox>("Playlist").Items = Songs;
             this.FindControl<TextBlock>("PlaylistTitle").Text = playlistTitle;
