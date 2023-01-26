@@ -43,10 +43,10 @@ public partial class MainWindow : Window
 
         using (var driver = new ChromeDriver())
         {
-            StringBuilder description = new StringBuilder();
+            StringBuilder playlistDescription = new StringBuilder();
             Songs = new List<Song>();
             string playlistTitle = string.Empty;
-            string coverImage = string.Empty;
+            string coverImageUrl = string.Empty;
             string basePath = string.Empty;
 
             if (playlistUrl.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
@@ -57,8 +57,6 @@ public partial class MainWindow : Window
             {
                 basePath = "//music-image-row[contains(@icon-name,'play')]";
             }
-
-            driver.Manage().Window.Maximize();
            
             try
             {
@@ -66,13 +64,13 @@ public partial class MainWindow : Window
 
                 Thread.Sleep(3000);
 
-                coverImage = driver.FindElement(By.XPath(elementsPath))
+                coverImageUrl = driver.FindElement(By.XPath(elementsPath))
                .GetDomAttribute("image-src");
 
                 playlistTitle = driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("headline");
 
-                description.Append(driver.FindElement(By.XPath(elementsPath))
+                playlistDescription.Append(driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("primary-text"))
                     .Append(" ")
                     .Append(driver.FindElement(By.XPath(elementsPath))
@@ -81,21 +79,21 @@ public partial class MainWindow : Window
                     .Append(driver.FindElement(By.XPath(elementsPath))
                     .GetDomAttribute("tertiary-text"));
 
-                var durations = driver.FindElements(
+                var songsDuration = driver.FindElements(
                      By.XPath(basePath + "//div[@class='col4']//span"));
 
-                await DownloadImage(coverImage);
+                await DownloadImage(coverImageUrl);
 
-                var songs = driver.FindElements(By.XPath(basePath));
+                var songElements = driver.FindElements(By.XPath(basePath));
 
-                for (int i = 0; i < songs.Count; i++)
+                for (int i = 0; i < songElements.Count; i++)
                 {
                     Songs.Add(new Song
                     {
-                        SongName = songs[i].GetDomAttribute("primary-text"),
-                        AlbumName = songs[i].GetDomAttribute("secondary-text-2"),
-                        ArtistName = songs[i].GetDomAttribute("secondary-text-1"),
-                        Duration = durations[i].Text
+                        SongName = songElements[i].GetDomAttribute("primary-text"),
+                        AlbumName = songElements[i].GetDomAttribute("secondary-text-2"),
+                        ArtistName = songElements[i].GetDomAttribute("secondary-text-1"),
+                        Duration = songsDuration[i].Text
                     });
                 };
             }
@@ -104,9 +102,14 @@ public partial class MainWindow : Window
                 ShowErrorMessage(ex.Message);
             }
 
-            this.FindControl<ListBox>("Playlist").Items = Songs;
-            this.FindControl<TextBlock>("PlaylistTitle").Text = playlistTitle;
-            this.FindControl<TextBlock>("PlaylistDecsription").Text = description.ToString();
+            if (this.FindControl<ListBox>("Playlist") != null
+                && this.FindControl<TextBlock>("PlaylistTitle") != null
+                && this.FindControl<TextBlock>("PlaylistDecsription") != null)
+            {
+                this.FindControl<ListBox>("Playlist").Items = Songs;
+                this.FindControl<TextBlock>("PlaylistTitle").Text = playlistTitle;
+                this.FindControl<TextBlock>("PlaylistDecsription").Text = playlistDescription.ToString();
+            }
         }
     }
 
