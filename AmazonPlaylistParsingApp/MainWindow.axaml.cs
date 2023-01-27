@@ -18,8 +18,14 @@ namespace AmazonPlaylistParsingApp;
 public partial class MainWindow : Window
 {
     public List<Song> Songs { get; set; }
-    public Bitmap Cover { get; set; }
+    public Bitmap CoverImage { get; set; }
     public WebClient Client { get; set; }
+    public StringBuilder PlaylistDescriprtion { get; set; }
+    public ChromeDriver Driver { get; set; }
+    public string PlaylistUrl { get; set; }
+    public string ParsedPlaylistTitle { get; set; }
+    public string CoverImageUrl { get; set; }
+    public string BaseSongElementPath { get; set; }
 
     private const string elementsPath = "//music-detail-header[contains(@image-kind,'square')]";
 
@@ -30,72 +36,33 @@ public partial class MainWindow : Window
         Client = new WebClient();
     }
 
-    public async void ParsePlaylist()
+    private async void ParsePlaylist()
     {
-        string playlistUrl = this.FindControl<TextBox>("UrlInput").Text;
-
-        if (string.IsNullOrEmpty(playlistUrl) || !playlistUrl.Contains("music.amazon"))
+        if (!GetUserInput())
         {
-            ShowErrorMessage("Enter the valid amazon music url");
-
             return;
         }
 
-        using (var driver = new ChromeDriver())
+        using (Driver = new ChromeDriver())
         {
-            StringBuilder playlistDescription = new StringBuilder();
             Songs = new List<Song>();
-            string playlistTitle = string.Empty;
-            string coverImageUrl = string.Empty;
-            string basePath = string.Empty;
 
-            if (playlistUrl.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
+            if (PlaylistUrl.Contains("albums", StringComparison.InvariantCultureIgnoreCase))
             {
-                basePath = "//music-text-row[contains(@icon-name,'play')]";
+                BaseSongElementPath = "//music-text-row[contains(@icon-name,'play')]";
             }
             else
             {
-                basePath = "//music-image-row[contains(@icon-name,'play')]";
+                BaseSongElementPath = "//music-image-row[contains(@icon-name,'play')]";
             }
-           
+
+            Driver.Navigate().GoToUrl(PlaylistUrl);
+
+            Thread.Sleep(3000);
+
             try
             {
-                driver.Navigate().GoToUrl(playlistUrl);
-
-                Thread.Sleep(3000);
-
-                coverImageUrl = driver.FindElement(By.XPath(elementsPath))
-               .GetDomAttribute("image-src");
-
-                playlistTitle = driver.FindElement(By.XPath(elementsPath))
-                    .GetDomAttribute("headline");
-
-                playlistDescription.Append(driver.FindElement(By.XPath(elementsPath))
-                    .GetDomAttribute("primary-text"))
-                    .Append(" ")
-                    .Append(driver.FindElement(By.XPath(elementsPath))
-                    .GetDomAttribute("secondary-text"))
-                    .Append(" ")
-                    .Append(driver.FindElement(By.XPath(elementsPath))
-                    .GetDomAttribute("tertiary-text"));
-
-                var songsDuration = driver.FindElements(
-                     By.XPath(basePath + "//div[@class='col4']//span"));
-
-                await DownloadImage(coverImageUrl);
-
-                var songElements = driver.FindElements(By.XPath(basePath));
-
-                for (int i = 0; i < songElements.Count; i++)
-                {
-                    Songs.Add(new Song
-                    {
-                        SongName = songElements[i].GetDomAttribute("primary-text"),
-                        AlbumName = songElements[i].GetDomAttribute("secondary-text-2"),
-                        ArtistName = songElements[i].GetDomAttribute("secondary-text-1"),
-                        Duration = songsDuration[i].Text
-                    });
-                };
+                GetPlayllistElements();
             }
             catch (NoSuchElementException ex)
             {
@@ -107,10 +74,69 @@ public partial class MainWindow : Window
                 && this.FindControl<TextBlock>("PlaylistDecsription") != null)
             {
                 this.FindControl<ListBox>("Playlist").Items = Songs;
-                this.FindControl<TextBlock>("PlaylistTitle").Text = playlistTitle;
-                this.FindControl<TextBlock>("PlaylistDecsription").Text = playlistDescription.ToString();
+                this.FindControl<TextBlock>("PlaylistTitle").Text = ParsedPlaylistTitle;
+                this.FindControl<TextBlock>("PlaylistDecsription").Text = PlaylistDescriprtion.ToString();
             }
         }
+    }
+
+    private bool GetUserInput()
+    {
+        PlaylistUrl = string.Empty;
+
+        if (this.FindControl<TextBox>("UrlInput") != null)
+        {
+            PlaylistUrl = this.FindControl<TextBox>("UrlInput").Text;
+        }
+
+        if (string.IsNullOrEmpty(PlaylistUrl) || !PlaylistUrl.Contains("music.amazon"))
+        {
+            ShowErrorMessage("Enter the valid amazon music url");
+
+            return false;
+        }
+
+        return true;
+      
+    }
+
+    private async void GetPlayllistElements()
+    {
+        PlaylistDescriprtion = new StringBuilder();
+
+        CoverImageUrl = Driver.FindElement(By.XPath(elementsPath))
+            .GetDomAttribute("image-src");
+
+        ParsedPlaylistTitle = Driver.FindElement(By.XPath(elementsPath))
+            .GetDomAttribute("headline");
+
+        PlaylistDescriprtion
+            .Append(Driver.FindElement(By.XPath(elementsPath))
+            .GetDomAttribute("primary-text"))
+            .Append(" ")
+            .Append(Driver.FindElement(By.XPath(elementsPath))
+            .GetDomAttribute("secondary-text"))
+            .Append(" ")
+            .Append(Driver.FindElement(By.XPath(elementsPath))
+            .GetDomAttribute("tertiary-text"));
+
+        var songsDuration = Driver.FindElements(
+             By.XPath(BaseSongElementPath + "//div[@class='col4']//span"));
+
+        var songElements = Driver.FindElements(By.XPath(BaseSongElementPath));
+
+        for (int i = 0; i < songElements.Count; i++)
+        {
+            Songs.Add(new Song
+            {
+                SongName = songElements[i].GetDomAttribute("primary-text"),
+                AlbumName = songElements[i].GetDomAttribute("secondary-text-2"),
+                ArtistName = songElements[i].GetDomAttribute("secondary-text-1"),
+                Duration = songsDuration[i].Text
+            });
+        };
+
+        await DownloadImage(CoverImageUrl);
     }
 
     private void OnButtonClick(object sender, RoutedEventArgs e)
@@ -118,7 +144,7 @@ public partial class MainWindow : Window
         ParsePlaylist();
     }
 
-    public async Task DownloadImage(string url)
+    private async Task DownloadImage(string url)
     {
         try
         {
@@ -136,24 +162,24 @@ public partial class MainWindow : Window
         }
     }
 
-    public void DownloadComplete(byte[] bytes)
+    private void DownloadComplete(byte[] bytes)
     {
         try
         {
             Stream stream = new MemoryStream(bytes);
             var image = new Bitmap(stream);
 
-            Cover = image;
+            CoverImage = image;
 
-            if (this.FindControl<Image>("CoverImage") != null)
+            if (this.FindControl<Image>("PlaylistImage") != null)
             {
-                this.FindControl<Image>("CoverImage").Source = Cover;
+                this.FindControl<Image>("PlaylistImage").Source = CoverImage;
             }
 
         }
         catch
         {
-            Cover = null;
+            CoverImage = null;
         }
     }
 
